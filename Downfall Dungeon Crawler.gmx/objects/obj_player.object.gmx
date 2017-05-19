@@ -27,13 +27,15 @@
             <kind>1</kind>
             <string>/// Get input and move
 
-var spd = 3;
+var spd = 5;
 var hspd = (keyboard_check(vk_right) - keyboard_check(vk_left))*spd;
 var vspd = (keyboard_check(vk_down) - keyboard_check(vk_up))*spd;
 
 
 // Move
 scr_move(hspd, vspd);
+
+depth = -y;
 </string>
           </argument>
         </arguments>

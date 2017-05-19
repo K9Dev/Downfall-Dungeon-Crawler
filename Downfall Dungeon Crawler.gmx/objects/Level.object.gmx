@@ -38,11 +38,24 @@ var height = room_height div CELL_HEIGHT;
 // Create the grid
 grid = ds_grid_create(width, height);
 
+// Create pathfinding grid
+path_grid = mp_grid_create(0, 0, width, height, CELL_WIDTH, CELL_HEIGHT);
+
 // Fill the grid with the void
 ds_grid_set_region(grid, 0, 0, width -1, height -1, VOID);
 
-// Randomize the world
-randomize();
+// Load a room
+if(show_question("Would you like to load a Room?")){
+    var key = get_string("What is the name of the saved Room?", "default");
+    ini_open("Save.ini");
+    
+    var room_seed = ini_read_real("Rooms", key, 0);
+    
+    random_set_seed(room_seed);
+}else{
+    // Randomize the world
+    randomize();
+}
 
 // Create the controller in the center of the grid
 var cx = width div 2;
@@ -107,7 +120,18 @@ for(var yy = 1; yy &lt; height-1; yy++){
     }
 }
 
-// Draw the Level usind the grid
+//Remove single blocks
+for(var yy = 1; yy &lt; height-1; yy++){
+    
+    for(var xx = 1; xx &lt; width-1; xx++){
+        if(grid[# xx, yy] == WALL  &amp;&amp;  grid[# xx+1, yy] == FLOOR &amp;&amp;  grid[# xx-1, yy] == FLOOR &amp;&amp;  grid[# xx, yy+1] == FLOOR &amp;&amp;  grid[# xx, yy-1] == FLOOR){
+           grid[# xx, yy] = FLOOR;           
+        }
+    }
+}
+
+
+// Draw the Level using the grid
 for(var yy = 0; yy &lt; height; yy++){
     
     for(var xx = 0; xx &lt; width; xx++){
@@ -115,14 +139,189 @@ for(var yy = 0; yy &lt; height; yy++){
         if(grid[# xx, yy] == FLOOR){
             // Draw the floor
             tile_add(bg_floor, 0, 0, CELL_WIDTH, CELL_HEIGHT, xx * CELL_WIDTH, yy * CELL_HEIGHT, 0);
-        } else if(grid[# xx, yy] == WALL){
-            // Draw the walls
-            tile_add(bg_wall, 0, 0, CELL_WIDTH, CELL_HEIGHT, xx * CELL_WIDTH, yy * CELL_HEIGHT, 0);
+            
+            // Add some enemies
+            var odds = 100;
+            var ex = xx * CELL_WIDTH + CELL_WIDTH / 2;
+            var ey = yy * CELL_HEIGHT + CELL_HEIGHT / 2;
+            
+            if(point_distance(ex, ey, obj_player.x, obj_player.y) &gt; 80 &amp;&amp; irandom(odds) == odds){
+                instance_create(ex, ey, obj_enemy);
+            }
+        }else {
+            mp_grid_add_cell(path_grid, xx, yy);
+        } 
+    }
+}
+
+
+// Get tile sizes
+var tw = CELL_WIDTH/2;
+var th = CELL_HEIGHT/2;
+
+
+// Add the tiles
+for (var yy = 0; yy &lt; height * 2; yy++){
+    for(var xx = 0; xx &lt; width * 2; xx++){
+        if(grid[# xx div 2, yy div 2] == FLOOR){
+            // Get tiles position in room   x / y
+            var tx = xx * tw;
+            var ty = yy * th;
+            
+            var right = grid[# (xx + 1) div 2, yy div 2] != FLOOR;
+            var left = grid[# (xx - 1) div 2, yy div 2] != FLOOR;
+            var top = grid[# xx div 2, (yy - 1) div 2] != FLOOR;
+            var bottom = grid[# xx div 2, (yy + 1) div 2] != FLOOR;
+            
+            var top_right = grid[# (xx + 1) div 2, (yy - 1) div 2] != FLOOR; 
+            var top_left = grid[# (xx - 1) div 2, (yy - 1) div 2] != FLOOR;
+            var bottom_right = grid[# (xx + 1) div 2, (yy + 1) div 2] != FLOOR;
+            var bottom_left = grid[# (xx - 1) div 2, (yy + 1) div 2] != FLOOR;
+            
+            if(right){
+                if(bottom){
+                    tile_add(bg_wall_tiles, tw * 4, th * 1, tw, th, tx + tw, ty, -ty);
+                }else if(top){
+                    if(top_right){
+                        tile_add(bg_wall_tiles, tw * 4, th * 0, tw, th, tx + tw, ty-th, -ty + 5); 
+                    }else{
+                        tile_add(bg_wall_tiles, tw * 3, th * 0, tw, th, tx, ty-th, -ty + 5);
+                    }
+                    
+                    tile_add(bg_wall_tiles, tw * 0, th * 1, tw, th, tx + tw, ty, -ty + 5);
+                }else{
+                    tile_add(bg_wall_tiles, tw * 0, th * 1, tw, th, tx + tw, ty, -ty);
+                }
+            }
+            
+            if(left){
+                if(bottom){
+                    tile_add(bg_wall_tiles, tw * 3, th * 1, tw, th, tx - tw, ty, -ty);
+                }else if(top){
+                    if(top_left){
+                        tile_add(bg_wall_tiles, tw * 3, th * 0, tw, th, tx - tw, ty - th, -ty + 5); 
+                    }else{
+                        tile_add(bg_wall_tiles, tw * 4, th * 0, tw, th, tx, ty - th, -ty + 5);
+                    }
+                    
+                    tile_add(bg_wall_tiles, tw * 2, th * 1, tw, th, tx - tw, ty, -ty + 5);
+                }else{
+                    tile_add(bg_wall_tiles, tw * 2, th * 1, tw, th, tx - tw, ty, -ty);
+                }
+                
+            }
+            
+            if(top){
+                if(!top_right){
+                    tile_add(bg_wall_tiles, tw * 2, th * 2, tw, th, tx, ty - th, -ty + 5);
+                }else if(!top_left){
+                    tile_add(bg_wall_tiles, tw * 0, th * 2, tw, th, tx, ty - th, -ty + 5);
+                }else{
+                    tile_add(bg_wall_tiles, tw * 1, th * 2, tw, th, tx, ty - th, -ty + 5);
+                }
+            }
+            
+            if(bottom){
+                if(!bottom_right){
+                    tile_add(bg_wall_tiles, tw * 2, th * 0, tw, th, tx, ty, -ty - tw);
+                }else if(!bottom_left){
+                    tile_add(bg_wall_tiles, tw * 0, th * 0, tw, th, tx, ty, -ty - tw);
+                }else{
+                    tile_add(bg_wall_tiles, tw * 1, th * 0, tw, th, tx, ty, -ty - tw);
+                }          
+            
+            }
         }
     }
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="7" enumb="5">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>/// Destroy the grids
+ds_grid_destroy(grid);
+mp_grid_destroy(path_grid);
+</string>
+          </argument>
+        </arguments>
+      </action>
+    </event>
+    <event eventtype="9" enumb="83">
+      <action>
+        <libid>1</libid>
+        <id>603</id>
+        <kind>7</kind>
+        <userelative>0</userelative>
+        <isquestion>0</isquestion>
+        <useapplyto>-1</useapplyto>
+        <exetype>2</exetype>
+        <functionname></functionname>
+        <codestring></codestring>
+        <whoName>self</whoName>
+        <relative>0</relative>
+        <isnot>0</isnot>
+        <arguments>
+          <argument>
+            <kind>1</kind>
+            <string>/// Save the Room
+ini_open("Save.ini");
+
+var key = get_string("What will you name the room?", "default"); 
+var val = random_get_seed();
+
+ini_write_real("Rooms", key, val);
+
+ini_close();
 </string>
           </argument>
         </arguments>
